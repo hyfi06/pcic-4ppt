@@ -1,5 +1,6 @@
 use std::io;
 mod loader;
+mod pt;
 fn main() -> io::Result<()> {
     let filename = "otypes06.b08";
     let point_count = 6;

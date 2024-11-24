@@ -2,10 +2,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::path::Path;
 
-#[derive(Debug)]
-pub struct PointSet {
-    points: Vec<(u32, u32)>, // Usa u8 o u16 según el archivo
-}
+use crate::pt::PointSet;
 
 impl PointSet {
     fn from_bytes(bytes: &[u8], point_count: usize, byte_size: usize) -> Self {
