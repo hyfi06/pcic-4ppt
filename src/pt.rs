@@ -1,5 +1,5 @@
 use crate::graph_utils::{on_segment, orientation};
-use std::ops::Deref;
+use std::{iter::zip, ops::Deref, slice::Windows};
 
 #[derive(Debug)]
 pub struct PointSet {
@@ -14,13 +14,13 @@ impl Deref for PointSet {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Node<'a> {
     point: &'a (u32, u32),
     idx: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PartialPT<'a> {
     nodes: Vec<Node<'a>>,
     edges: Vec<(usize, usize)>,
@@ -38,7 +38,7 @@ impl<'a> PartialPT<'a> {
             edges: Vec::new(),
         };
     }
-    
+
     pub fn add_edge(&mut self, edge: (usize, usize)) -> Result<(), String> {
         let (idx1, idx2) = edge;
 
@@ -73,6 +73,7 @@ impl<'a> PartialPT<'a> {
     }
 
     fn edges_cross(&self, edge1: (usize, usize), edge2: (usize, usize)) -> bool {
+        // Introduction to Algorithms - Thomas H. Cormen et al (1018)
         let (a1, b1) = edge1;
         let (a2, b2) = edge2;
 
@@ -121,6 +122,7 @@ impl<'a> PartialPT<'a> {
         });
 
         //  Graham Scan
+        // Introduction to Algorithms - Thomas H. Cormen et al (1031)
         let mut lower_hull: Vec<&Node<'a>> = Vec::new();
         nodes.iter().for_each(|&node| {
             while lower_hull.len() >= 2
@@ -151,8 +153,27 @@ impl<'a> PartialPT<'a> {
 
         lower_hull.pop();
         upper_hull.pop();
-
         lower_hull.extend(upper_hull);
         lower_hull
     }
+
+    pub fn is_a_possible_ppt(&self) -> bool {
+        return self.edges.len() == 2 * self.nodes.len() - 3;
+    }
+}
+
+pub fn find_pseudo_triangles(initial_state: &mut PartialPT) {
+    let mut solutions: Vec<PartialPT> = Vec::new();
+    let convex_hull = initial_state.convex_hull();
+
+    convex_hull.windows(2).for_each(|window| {
+        if let [w1, w2] = window {
+            initial_state.add_edge((w1.idx.clone(), w2.idx.clone()));
+        }
+    });
+
+    let possible_edges: Vec<(usize, usize)> = (0..initial_state.nodes.len())
+        .flat_map(|i| (i + 1..initial_state.nodes.len()).map(move |j| (i, j)))
+        .filter(|edge| !initial_state.edges.contains(edge))
+        .collect();
 }
