@@ -1,3 +1,4 @@
+use crate::graph_utils::{on_segment, orientation};
 use std::ops::Deref;
 
 #[derive(Debug)]
@@ -37,6 +38,7 @@ impl<'a> PartialPT<'a> {
             edges: Vec::new(),
         };
     }
+    
     pub fn add_edge(&mut self, edge: (usize, usize)) -> Result<(), String> {
         let (idx1, idx2) = edge;
 
@@ -70,7 +72,6 @@ impl<'a> PartialPT<'a> {
         Ok(())
     }
 
-
     fn edges_cross(&self, edge1: (usize, usize), edge2: (usize, usize)) -> bool {
         let (a1, b1) = edge1;
         let (a2, b2) = edge2;
@@ -79,18 +80,6 @@ impl<'a> PartialPT<'a> {
         let p2 = self.nodes[b1].point;
         let q1 = self.nodes[a2].point;
         let q2 = self.nodes[b2].point;
-
-        fn orientation(p: &(u32, u32), q: &(u32, u32), r: &(u32, u32)) -> i32 {
-            let val = (q.1 as i64 - p.1 as i64) * (r.0 as i64 - q.0 as i64)
-                - (q.0 as i64 - p.0 as i64) * (r.1 as i64 - q.1 as i64);
-            if val == 0 {
-                0 // collinear
-            } else if val > 0 {
-                1 // Clockwise direction
-            } else {
-                2 // Counterclockwise
-            }
-        }
 
         let o1 = orientation(p1, p2, q1);
         let o2 = orientation(p1, p2, q2);
@@ -103,9 +92,6 @@ impl<'a> PartialPT<'a> {
         }
 
         // Collinear condition
-        fn on_segment(p: &(u32, u32), q: &(u32, u32), r: &(u32, u32)) -> bool {
-            q.0 >= p.0.min(r.0) && q.0 <= p.0.max(r.0) && q.1 >= p.1.min(r.1) && q.1 <= p.1.max(r.1)
-        }
 
         if o1 == 0 && on_segment(p1, q1, p2) {
             return true;
@@ -121,5 +107,52 @@ impl<'a> PartialPT<'a> {
         }
 
         false
+    }
+
+    pub fn convex_hull(&self) -> Vec<&Node> {
+        let mut nodes: Vec<&Node> = self.nodes.iter().collect();
+
+        nodes.sort_by(|a, b| {
+            if a.point.0 == b.point.0 {
+                a.point.1.cmp(&b.point.1)
+            } else {
+                a.point.0.cmp(&b.point.0)
+            }
+        });
+
+        //  Graham Scan
+        let mut lower_hull: Vec<&Node<'a>> = Vec::new();
+        nodes.iter().for_each(|&node| {
+            while lower_hull.len() >= 2
+                && orientation(
+                    lower_hull[lower_hull.len() - 2].point,
+                    lower_hull[lower_hull.len() - 1].point,
+                    node.point,
+                ) != 2
+            {
+                lower_hull.pop();
+            }
+            lower_hull.push(node);
+        });
+
+        let mut upper_hull: Vec<&Node<'a>> = Vec::new();
+        nodes.iter().rev().for_each(|&node| {
+            while upper_hull.len() >= 2
+                && orientation(
+                    upper_hull[upper_hull.len() - 2].point,
+                    upper_hull[upper_hull.len() - 1].point,
+                    node.point,
+                ) != 2
+            {
+                upper_hull.pop();
+            }
+            upper_hull.push(node);
+        });
+
+        lower_hull.pop();
+        upper_hull.pop();
+
+        lower_hull.extend(upper_hull);
+        lower_hull
     }
 }
