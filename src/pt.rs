@@ -1,5 +1,5 @@
 use crate::graph_utils::{on_segment, orientation};
-use std::{iter::zip, ops::Deref, slice::Windows};
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct PointSet {
@@ -15,23 +15,23 @@ impl Deref for PointSet {
 }
 
 #[derive(Debug, Clone)]
-pub struct Node<'a> {
-    point: &'a (u32, u32),
-    idx: usize,
+pub struct Node {
+    point: (u32, u32),
+    pub idx: usize,
 }
 
 #[derive(Debug, Clone)]
-pub struct PartialPT<'a> {
-    nodes: Vec<Node<'a>>,
+pub struct PartialPT {
+    nodes: Vec<Node>,
     edges: Vec<(usize, usize)>,
 }
 
-impl<'a> PartialPT<'a> {
-    pub fn from_point_set(point_set: &'a PointSet) -> Self {
+impl PartialPT {
+    pub fn from_point_set(point_set: &PointSet) -> Self {
         let nodes: Vec<Node> = point_set
             .iter()
             .enumerate()
-            .map(|(idx, point)| Node { point, idx })
+            .map(|(idx, &point)| Node { point, idx })
             .collect();
         return PartialPT {
             nodes,
@@ -77,10 +77,10 @@ impl<'a> PartialPT<'a> {
         let (a1, b1) = edge1;
         let (a2, b2) = edge2;
 
-        let p1 = self.nodes[a1].point;
-        let p2 = self.nodes[b1].point;
-        let q1 = self.nodes[a2].point;
-        let q2 = self.nodes[b2].point;
+        let p1 = &self.nodes[a1].point;
+        let p2 = &self.nodes[b1].point;
+        let q1 = &self.nodes[a2].point;
+        let q2 = &self.nodes[b2].point;
 
         let o1 = orientation(p1, p2, q1);
         let o2 = orientation(p1, p2, q2);
@@ -113,7 +113,7 @@ impl<'a> PartialPT<'a> {
     pub fn convex_hull(&self) -> Vec<&Node> {
         let mut nodes: Vec<&Node> = self.nodes.iter().collect();
 
-        nodes.sort_by(|a, b| {
+        nodes.sort_by(|&a, &b| {
             if a.point.0 == b.point.0 {
                 a.point.1.cmp(&b.point.1)
             } else {
@@ -123,13 +123,13 @@ impl<'a> PartialPT<'a> {
 
         //  Graham Scan
         // Introduction to Algorithms - Thomas H. Cormen et al (1031)
-        let mut lower_hull: Vec<&Node<'a>> = Vec::new();
+        let mut lower_hull:Vec<&Node> = Vec::new();
         nodes.iter().for_each(|&node| {
             while lower_hull.len() >= 2
                 && orientation(
-                    lower_hull[lower_hull.len() - 2].point,
-                    lower_hull[lower_hull.len() - 1].point,
-                    node.point,
+                    &lower_hull[lower_hull.len() - 2].point,
+                    &lower_hull[lower_hull.len() - 1].point,
+                    &node.point,
                 ) != 2
             {
                 lower_hull.pop();
@@ -137,13 +137,13 @@ impl<'a> PartialPT<'a> {
             lower_hull.push(node);
         });
 
-        let mut upper_hull: Vec<&Node<'a>> = Vec::new();
+        let mut upper_hull:Vec<&Node>  = Vec::new();
         nodes.iter().rev().for_each(|&node| {
             while upper_hull.len() >= 2
                 && orientation(
-                    upper_hull[upper_hull.len() - 2].point,
-                    upper_hull[upper_hull.len() - 1].point,
-                    node.point,
+                    &upper_hull[upper_hull.len() - 2].point,
+                    &upper_hull[upper_hull.len() - 1].point,
+                    &node.point,
                 ) != 2
             {
                 upper_hull.pop();
@@ -162,18 +162,18 @@ impl<'a> PartialPT<'a> {
     }
 }
 
-pub fn find_pseudo_triangles(initial_state: &mut PartialPT) {
-    let mut solutions: Vec<PartialPT> = Vec::new();
-    let convex_hull = initial_state.convex_hull();
+// pub fn find_pseudo_triangles(initial_state: &mut PartialPT) {
+//     let mut solutions: Vec<PartialPT> = Vec::new();
+//     let convex_hull = initial_state.convex_hull();
 
-    convex_hull.windows(2).for_each(|window| {
-        if let [w1, w2] = window {
-            initial_state.add_edge((w1.idx.clone(), w2.idx.clone()));
-        }
-    });
+//     convex_hull.windows(2).for_each(|window| {
+//         if let [w1, w2] = window {
+//             initial_state.add_edge((w1.idx.clone(), w2.idx.clone()));
+//         }
+//     });
 
-    let possible_edges: Vec<(usize, usize)> = (0..initial_state.nodes.len())
-        .flat_map(|i| (i + 1..initial_state.nodes.len()).map(move |j| (i, j)))
-        .filter(|edge| !initial_state.edges.contains(edge))
-        .collect();
-}
+//     let possible_edges: Vec<(usize, usize)> = (0..initial_state.nodes.len())
+//         .flat_map(|i| (i + 1..initial_state.nodes.len()).map(move |j| (i, j)))
+//         .filter(|edge| !initial_state.edges.contains(edge))
+//         .collect();
+// }
