@@ -1,7 +1,8 @@
 use crate::graph_utils::{on_segment, orientation};
 use std::ops::Deref;
 
-#[derive(Debug)]
+
+#[derive(Debug,Clone)]
 pub struct PointSet {
     pub points: Vec<(u32, u32)>, // Usa u8 o u16 según el archivo
 }
@@ -33,10 +34,11 @@ impl PartialPT {
             .enumerate()
             .map(|(idx, &point)| Node { point, idx })
             .collect();
-        return PartialPT {
+        let mut pt =  PartialPT {
             nodes,
             edges: Vec::new(),
         };
+        return pt;
     }
 
     pub fn add_edge(&mut self, edge: (usize, usize)) -> Result<(), String> {
@@ -77,10 +79,10 @@ impl PartialPT {
         let (a1, b1) = edge1;
         let (a2, b2) = edge2;
 
-        let p1 = &self.nodes[a1].point;
-        let p2 = &self.nodes[b1].point;
-        let q1 = &self.nodes[a2].point;
-        let q2 = &self.nodes[b2].point;
+        let p1 = self.nodes[a1].point;
+        let p2 = self.nodes[b1].point;
+        let q1 = self.nodes[a2].point;
+        let q2 = self.nodes[b2].point;
 
         let o1 = orientation(p1, p2, q1);
         let o2 = orientation(p1, p2, q2);
@@ -127,9 +129,9 @@ impl PartialPT {
         nodes.iter().for_each(|&node| {
             while lower_hull.len() >= 2
                 && orientation(
-                    &lower_hull[lower_hull.len() - 2].point,
-                    &lower_hull[lower_hull.len() - 1].point,
-                    &node.point,
+                    lower_hull[lower_hull.len() - 2].point,
+                    lower_hull[lower_hull.len() - 1].point,
+                    node.point,
                 ) != 2
             {
                 lower_hull.pop();
@@ -141,9 +143,9 @@ impl PartialPT {
         nodes.iter().rev().for_each(|&node| {
             while upper_hull.len() >= 2
                 && orientation(
-                    &upper_hull[upper_hull.len() - 2].point,
-                    &upper_hull[upper_hull.len() - 1].point,
-                    &node.point,
+                    upper_hull[upper_hull.len() - 2].point,
+                    upper_hull[upper_hull.len() - 1].point,
+                    node.point,
                 ) != 2
             {
                 upper_hull.pop();
