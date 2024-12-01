@@ -21,10 +21,11 @@ impl PointSet {
             };
             points.push((x, y));
         }
-        
+
         PointSet { points }
     }
 }
+
 
 pub fn load_file<P: AsRef<Path>>(path: P, point_count: usize, byte_size: usize) -> io::Result<Vec<PointSet>> {
     let file = File::open(path)?;

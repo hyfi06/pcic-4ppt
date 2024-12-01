@@ -1,8 +1,7 @@
 use crate::graph_utils::{on_segment, orientation};
-use std::ops::Deref;
+use std::{ops::Deref, vec};
 
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct PointSet {
     pub points: Vec<(u32, u32)>, // Usa u8 o u16 según el archivo
 }
@@ -18,7 +17,17 @@ impl Deref for PointSet {
 #[derive(Debug, Clone)]
 pub struct Node {
     point: (u32, u32),
-    pub idx: usize,
+    idx: usize,
+}
+
+impl Node {
+    fn get_coord(&self) -> &(u32, u32) {
+        return &self.point;
+    }
+
+    fn get_idx(&self) -> usize {
+        return self.idx.clone();
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -34,10 +43,11 @@ impl PartialPT {
             .enumerate()
             .map(|(idx, &point)| Node { point, idx })
             .collect();
-        let mut pt =  PartialPT {
+        let mut pt = PartialPT {
             nodes,
             edges: Vec::new(),
         };
+
         return pt;
     }
 
@@ -64,7 +74,7 @@ impl PartialPT {
         let conflict: bool = self
             .edges
             .iter() //todo! "par_iter"
-            .any(|&edge2| self.edges_cross(edge, edge2));
+            .any(|edge2| self.edges_cross(&edge, edge2));
 
         if conflict {
             return Err("The edge intersects with another existing one".to_string());
@@ -74,15 +84,15 @@ impl PartialPT {
         Ok(())
     }
 
-    fn edges_cross(&self, edge1: (usize, usize), edge2: (usize, usize)) -> bool {
+    fn edges_cross(&self, edge1: &(usize, usize), edge2: &(usize, usize)) -> bool {
         // Introduction to Algorithms - Thomas H. Cormen et al (1018)
-        let (a1, b1) = edge1;
-        let (a2, b2) = edge2;
+        let (a1, b1) = edge1.clone();
+        let (a2, b2) = edge2.clone();
 
-        let p1 = self.nodes[a1].point;
-        let p2 = self.nodes[b1].point;
-        let q1 = self.nodes[a2].point;
-        let q2 = self.nodes[b2].point;
+        let p1 = self.nodes[a1].get_coord();
+        let p2 = self.nodes[b1].get_coord();
+        let q1 = self.nodes[a2].get_coord();
+        let q2 = self.nodes[b2].get_coord();
 
         let o1 = orientation(p1, p2, q1);
         let o2 = orientation(p1, p2, q2);
@@ -112,45 +122,51 @@ impl PartialPT {
         false
     }
 
-    pub fn convex_hull(&self) -> Vec<&Node> {
-        let mut nodes: Vec<&Node> = self.nodes.iter().collect();
+    pub fn convex_hull(&self) -> Vec<usize> {
+        let mut nodes: Vec<usize> = (0..self.nodes.len()).collect();
 
         nodes.sort_by(|&a, &b| {
-            if a.point.0 == b.point.0 {
-                a.point.1.cmp(&b.point.1)
+            if self.nodes[a].get_coord().0 == self.nodes[b].get_coord().0 {
+                self.nodes[a]
+                    .get_coord()
+                    .1
+                    .cmp(&self.nodes[b].get_coord().1)
             } else {
-                a.point.0.cmp(&b.point.0)
+                self.nodes[a]
+                    .get_coord()
+                    .0
+                    .cmp(&self.nodes[b].get_coord().0)
             }
         });
 
         //  Graham Scan
         // Introduction to Algorithms - Thomas H. Cormen et al (1031)
-        let mut lower_hull:Vec<&Node> = Vec::new();
-        nodes.iter().for_each(|&node| {
+        let mut lower_hull: Vec<usize> = Vec::new();
+        nodes.iter().for_each(|&node_idx| {
             while lower_hull.len() >= 2
                 && orientation(
-                    lower_hull[lower_hull.len() - 2].point,
-                    lower_hull[lower_hull.len() - 1].point,
-                    node.point,
+                    self.nodes[lower_hull[lower_hull.len() - 2]].get_coord(),
+                    self.nodes[lower_hull[lower_hull.len() - 1]].get_coord(),
+                    self.nodes[node_idx].get_coord(),
                 ) != 2
             {
                 lower_hull.pop();
             }
-            lower_hull.push(node);
+            lower_hull.push(node_idx);
         });
 
-        let mut upper_hull:Vec<&Node>  = Vec::new();
-        nodes.iter().rev().for_each(|&node| {
+        let mut upper_hull: Vec<usize> = Vec::new();
+        nodes.iter().rev().for_each(|&node_idx| {
             while upper_hull.len() >= 2
                 && orientation(
-                    upper_hull[upper_hull.len() - 2].point,
-                    upper_hull[upper_hull.len() - 1].point,
-                    node.point,
+                    self.nodes[upper_hull[upper_hull.len() - 2]].get_coord(),
+                    self.nodes[upper_hull[upper_hull.len() - 1]].get_coord(),
+                    self.nodes[node_idx].get_coord(),
                 ) != 2
             {
                 upper_hull.pop();
             }
-            upper_hull.push(node);
+            upper_hull.push(node_idx);
         });
 
         lower_hull.pop();
