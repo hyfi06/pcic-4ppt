@@ -1,5 +1,5 @@
 use crate::graph_utils::{on_segment, orientation};
-use std::{ops::Deref, vec};
+use std::ops::Deref;
 
 #[derive(Debug, Clone)]
 pub struct PointSet {
@@ -74,7 +74,12 @@ impl PartialPT {
         let conflict: bool = self
             .edges
             .iter() //todo! "par_iter"
-            .any(|edge2| self.edges_cross(&edge, edge2));
+            .any(|edge2| {
+                if edge.0 == edge2.0 || edge.0 == edge2.1 || edge.1 == edge2.0 || edge.1 == edge2.1 {
+                    return false;
+                }
+                self.edges_cross(&edge, edge2)
+            });
 
         if conflict {
             return Err("The edge intersects with another existing one".to_string());
@@ -101,6 +106,10 @@ impl PartialPT {
 
         // Crossing condition
         if o1 != o2 && o3 != o4 {
+            println!(
+                "Arista 1 {:?} x Arista 2 {:?}. o1 {}, o2 {}, o3 {}, o4 {}",
+                edge1, edge2, o1, o2, o3, o4
+            );
             return true;
         }
 
@@ -177,6 +186,63 @@ impl PartialPT {
 
     pub fn is_a_possible_ppt(&self) -> bool {
         return self.edges.len() == 2 * self.nodes.len() - 3;
+    }
+
+    pub fn draw_ascii(&self, width: usize, height: usize) {
+        // Encontrar límites de las coordenadas
+        let x_coords = self.nodes.iter().map(|node| node.get_coord().0);
+        let y_coords = self.nodes.iter().map(|node| node.get_coord().1);
+        let (min_x, max_x) = (
+            x_coords.clone().min().unwrap_or(0),
+            x_coords.max().unwrap_or(255),
+        );
+        let (min_y, max_y) = (
+            y_coords.clone().min().unwrap_or(0),
+            y_coords.max().unwrap_or(255),
+        );
+
+        // Mapear coordenadas al rango discreto de la cuadrícula
+        let map_to_grid = |x: u32, y: u32| {
+            let grid_x = ((x - min_x) as f32 / (max_x - min_x).max(1) as f32 * (width - 1) as f32)
+                .round() as usize;
+            let grid_y = ((y - min_y) as f32 / (max_y - min_y).max(1) as f32 * (height - 1) as f32)
+                .round() as usize;
+            (grid_x, grid_y)
+        };
+
+        // Crear la cuadrícula vacía
+        let mut grid = vec![vec![' '; width]; height];
+
+        // Dibujar las aristas
+        for &(idx1, idx2) in &self.edges {
+            let (x1, y1) = map_to_grid(self.nodes[idx1].point.0, self.nodes[idx1].point.1);
+            let (x2, y2) = map_to_grid(self.nodes[idx2].point.0, self.nodes[idx2].point.1);
+
+            // Dibujar línea aproximada entre los dos puntos
+            let (dx, dy) = (x2 as isize - x1 as isize, y2 as isize - y1 as isize);
+            let steps = dx.abs().max(dy.abs());
+            for step in 0..=steps {
+                let x = x1 as isize + step * dx / steps;
+                let y = y1 as isize + step * dy / steps;
+                if x >= 0 && y >= 0 && (y as usize) < height && (x as usize) < width {
+                    grid[y as usize][x as usize] = '.';
+                }
+            }
+        }
+
+        // Dibujar los nodos
+        for (i, node) in self.nodes.iter().enumerate() {
+            let (x, y) = map_to_grid(node.point.0, node.point.1);
+            if y < height && x < width {
+                grid[y][x] = char::from_digit(i as u32 % 10, 10).unwrap_or('?');
+                // Usar el índice del nodo como etiqueta
+            }
+        }
+
+        // Imprimir la cuadrícula
+        for row in grid.into_iter().rev() {
+            println!("{}", row.into_iter().collect::<String>());
+        }
     }
 }
 

@@ -10,13 +10,17 @@ fn main() -> io::Result<()> {
     let point_sets = loader::load_file(filename, point_count, byte_size)?;
     let mut graph = pt::PartialPT::from_point_set(&point_sets[1]);
     let ch: Vec<usize> = graph.convex_hull();
-    let mut iter_ch = ch.iter();
-    while let (Some(&x),Some(&y)) = (iter_ch.next(), iter_ch.next()) {
-        graph.add_edge((x,y)).ok();
+    let pairs = create_pairs(&ch);
+    for edge in pairs {
+        let res =graph.add_edge(edge);
+        match res {
+            Ok(_) => println!("se insertó la arista {:?}",edge),
+            Err(err) => println!("{}",err),
+        }
     }
-    graph.add_edge((1,2)).ok();
-    println!("{:?}", ch);
-    println!("{:?}", graph);
+    println!("{:?}",ch);
+    graph.draw_ascii(40, 40);
+    println!("{:?}",graph);
     Ok(())
 }
 
