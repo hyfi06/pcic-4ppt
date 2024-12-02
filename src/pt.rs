@@ -112,10 +112,10 @@ impl PartialPT {
 
         // Crossing condition
         if o1 != o2 && o3 != o4 {
-            println!(
-                "Arista 1 {:?} x Arista 2 {:?}. o1 {}, o2 {}, o3 {}, o4 {}",
-                edge1, edge2, o1, o2, o3, o4
-            );
+            // println!(
+            //     "Arista 1 {:?} x Arista 2 {:?}. o1 {}, o2 {}, o3 {}, o4 {}",
+            //     edge1, edge2, o1, o2, o3, o4
+            // );
             return true;
         }
 

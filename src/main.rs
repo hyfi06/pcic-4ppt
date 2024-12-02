@@ -26,6 +26,7 @@ fn find_pseudo_triangles(initial_state: &mut PartialPT) {
     println!("{:?}",possible_edges);
     let mut visited_states:HashSet<String> = HashSet::new();
     backtrack_with_hash(&initial_state,&possible_edges,&mut solutions,&mut visited_states);
+    println!("Soluciones encontradas {}", solutions.len() );
 
 }
 
@@ -43,12 +44,11 @@ fn backtrack_with_hash(
     if !explored_hashes.insert(current_hash.clone()) {
         println!("{}: Ya visitado", current_hash);
         return;
-    } else {
-        println!("{}: Explorando", current_hash);
     }
     
     // Si cumple con alguna condición de solución (ejemplo: es una triangulación completa)
     if current_state.is_a_possible_ppt() {
+        println!("{}: Explorando", current_hash);
         current_state.draw_ascii(40, 40);
         solutions.push(current_state.clone());
         return;
