@@ -1,4 +1,4 @@
-use crate::graph_utils::{on_segment, orientation};
+use crate::graph_utils::{on_segment, orientation,cicle_to_edges};
 use std::ops::Deref;
 
 #[derive(Debug, Clone)]
@@ -47,7 +47,11 @@ impl PartialPT {
             nodes,
             edges: Vec::new(),
         };
-
+        let ch: Vec<usize> = pt.convex_hull();
+        let pairs = cicle_to_edges(&ch);
+        for edge in pairs {
+            pt.add_edge(edge).ok();
+        }
         return pt;
     }
 
@@ -85,8 +89,10 @@ impl PartialPT {
             return Err("The edge intersects with another existing one".to_string());
         }
 
-        self.edges.push(edge);
-        Ok(())
+        match self.edges.binary_search(&edge) {
+            Ok(_) => Err("Edge already exists".to_string()),
+            Err(pos) => Ok(self.edges.insert(pos, edge)),
+        }
     }
 
     fn edges_cross(&self, edge1: &(usize, usize), edge2: &(usize, usize)) -> bool {
@@ -131,7 +137,7 @@ impl PartialPT {
         false
     }
 
-    pub fn convex_hull(&self) -> Vec<usize> {
+    fn convex_hull(&self) -> Vec<usize> {
         let mut nodes: Vec<usize> = (0..self.nodes.len()).collect();
 
         nodes.sort_by(|&a, &b| {
@@ -188,6 +194,22 @@ impl PartialPT {
         return self.edges.len() == 2 * self.nodes.len() - 3;
     }
 
+    pub fn get_nodes_len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn contains_edge(&self, edge: &(usize, usize)) -> bool {
+        self.edges.contains(edge)
+    }
+
+    pub fn hash_edges(&self)->String {
+        let mut hash = String::new();
+        self.edges.iter().for_each(|edge| {
+            hash.push_str(&format!("{}", edge.0));
+            hash.push_str(&format!("{}", edge.1));
+        });
+        hash
+    }
     pub fn draw_ascii(&self, width: usize, height: usize) {
         // Encontrar límites de las coordenadas
         let x_coords = self.nodes.iter().map(|node| node.get_coord().0);
@@ -245,19 +267,3 @@ impl PartialPT {
         }
     }
 }
-
-// pub fn find_pseudo_triangles(initial_state: &mut PartialPT) {
-//     let mut solutions: Vec<PartialPT> = Vec::new();
-//     let convex_hull = initial_state.convex_hull();
-
-//     convex_hull.windows(2).for_each(|window| {
-//         if let [w1, w2] = window {
-//             initial_state.add_edge((w1.idx.clone(), w2.idx.clone()));
-//         }
-//     });
-
-//     let possible_edges: Vec<(usize, usize)> = (0..initial_state.nodes.len())
-//         .flat_map(|i| (i + 1..initial_state.nodes.len()).map(move |j| (i, j)))
-//         .filter(|edge| !initial_state.edges.contains(edge))
-//         .collect();
-// }

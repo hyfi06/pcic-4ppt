@@ -1,35 +1,61 @@
-use std::io;
+use std::{collections::HashSet, io};
 mod graph_utils;
 mod loader;
 mod pt;
+use pt::PartialPT;
+
 fn main() -> io::Result<()> {
     let filename = "otypes06.b08";
     let point_count = 6;
     let byte_size = 1;
 
     let point_sets = loader::load_file(filename, point_count, byte_size)?;
-    let mut graph = pt::PartialPT::from_point_set(&point_sets[1]);
-    let ch: Vec<usize> = graph.convex_hull();
-    let pairs = create_pairs(&ch);
-    for edge in pairs {
-        let res =graph.add_edge(edge);
-        match res {
-            Ok(_) => println!("se insertó la arista {:?}",edge),
-            Err(err) => println!("{}",err),
-        }
-    }
-    println!("{:?}",ch);
-    graph.draw_ascii(40, 40);
+    let mut graph = pt::PartialPT::from_point_set(&point_sets[1]);    
     println!("{:?}",graph);
+    graph.draw_ascii(40, 40);
+    find_pseudo_triangles(&mut graph);
     Ok(())
 }
 
-fn create_pairs(vec: &[usize]) -> Vec<(usize, usize)> {
-    vec.iter()
-        .enumerate()
-        .map(|(i, &x)| {
-            let next = vec.get(i + 1).unwrap_or(&vec[0]); // Toma el siguiente elemento, o el primero si es el último
-            (x, *next)
-        })
-        .collect()
+fn find_pseudo_triangles(initial_state: &mut PartialPT) {
+    let mut solutions: Vec<PartialPT> = Vec::new();
+
+    let possible_edges: Vec<(usize, usize)> = (0..initial_state.get_nodes_len())
+        .flat_map(|i| (i + 1..initial_state.get_nodes_len()).map(move |j| (i, j)))
+        .filter(|edge| !initial_state.contains_edge(edge))
+        .collect();
+    let mut visited_states:HashSet<String> = HashSet::new();
+    backtrack_with_hash(&initial_state,&possible_edges,&mut solutions,&mut visited_states);
+
+}
+
+fn backtrack_with_hash(
+    current_state: &PartialPT,
+    remaining_edges: &[(usize, usize)],
+    solutions: &mut Vec<PartialPT>,
+    explored_hashes: &mut HashSet<String>,
+) {
+    // Generar hash de la configuración actual
+    let current_hash = current_state.hash_edges();
+    current_state.draw_ascii(40, 40);
+    
+    // Si ya exploramos esta configuración, retornar
+    if !explored_hashes.insert(current_hash) {
+        return;
+    }
+
+    // Si cumple con alguna condición de solución (ejemplo: es una triangulación completa)
+    if current_state.is_a_possible_ppt() {
+        solutions.push(current_state.clone());
+        return;
+    }
+
+    // Explorar las posibles aristas restantes
+    for (i, &edge) in remaining_edges.iter().enumerate() {
+        let mut new_state = current_state.clone();
+        if new_state.add_edge(edge).is_ok() {
+            let next_edges: &[(usize, usize)] = &remaining_edges[i + 1..];
+            backtrack_with_hash(current_state, next_edges, solutions, explored_hashes);
+        }
+    }
 }

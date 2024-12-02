@@ -13,3 +13,13 @@ pub fn orientation(p: &(u32, u32), q: &(u32, u32), r: &(u32, u32)) -> i32 {
 pub fn on_segment(p: &(u32, u32), q: &(u32, u32), r: &(u32, u32)) -> bool {
     q.0 >= p.0.min(r.0) && q.0 <= p.0.max(r.0) && q.1 >= p.1.min(r.1) && q.1 <= p.1.max(r.1)
 }
+
+pub fn cicle_to_edges(cicle: &Vec<usize>) -> Vec<(usize, usize)> {
+    cicle.iter()
+        .enumerate()
+        .map(|(i, &x)| {
+            let next = cicle.get(i + 1).unwrap_or(&cicle[0]);
+            (x, *next)
+        })
+        .collect()
+}

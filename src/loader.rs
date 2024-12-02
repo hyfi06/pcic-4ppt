@@ -1,5 +1,6 @@
 use std::fs::File;
-use std::io::{self, BufReader, Read};
+use std::io;
+use std::io::{ BufReader, Read};
 use std::path::Path;
 
 use crate::pt::PointSet;
@@ -14,11 +15,13 @@ impl PointSet {
                 2 => u16::from_le_bytes([bytes[i * 2], bytes[i * 2 + 1]]) as u32,
                 _ => panic!("Formato no soportado"),
             };
+
             let y = match byte_size {
                 1 => bytes[i * 2 + 1] as u32,
                 2 => u16::from_le_bytes([bytes[i * 2 + 2], bytes[i * 2 + 3]]) as u32,
                 _ => panic!("Formato no soportado"),
             };
+
             points.push((x, y));
         }
 
