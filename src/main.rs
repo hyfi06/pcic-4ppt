@@ -12,7 +12,6 @@ fn main() -> io::Result<()> {
     let point_sets = loader::load_file(filename, point_count, byte_size)?;
     let mut graph = pt::PartialPT::from_point_set(&point_sets[1]);    
     println!("{:?}",graph);
-    graph.draw_ascii(40, 40);
     find_pseudo_triangles(&mut graph);
     Ok(())
 }
@@ -24,6 +23,7 @@ fn find_pseudo_triangles(initial_state: &mut PartialPT) {
         .flat_map(|i| (i + 1..initial_state.get_nodes_len()).map(move |j| (i, j)))
         .filter(|edge| !initial_state.contains_edge(edge))
         .collect();
+    println!("{:?}",possible_edges);
     let mut visited_states:HashSet<String> = HashSet::new();
     backtrack_with_hash(&initial_state,&possible_edges,&mut solutions,&mut visited_states);
 
@@ -37,15 +37,19 @@ fn backtrack_with_hash(
 ) {
     // Generar hash de la configuración actual
     let current_hash = current_state.hash_edges();
-    current_state.draw_ascii(40, 40);
     
-    // Si ya exploramos esta configuración, retornar
-    if !explored_hashes.insert(current_hash) {
-        return;
-    }
 
+    // Si ya exploramos esta configuración, retornar
+    if !explored_hashes.insert(current_hash.clone()) {
+        println!("{}: Ya visitado", current_hash);
+        return;
+    } else {
+        println!("{}: Explorando", current_hash);
+    }
+    
     // Si cumple con alguna condición de solución (ejemplo: es una triangulación completa)
     if current_state.is_a_possible_ppt() {
+        current_state.draw_ascii(40, 40);
         solutions.push(current_state.clone());
         return;
     }
@@ -55,7 +59,7 @@ fn backtrack_with_hash(
         let mut new_state = current_state.clone();
         if new_state.add_edge(edge).is_ok() {
             let next_edges: &[(usize, usize)] = &remaining_edges[i + 1..];
-            backtrack_with_hash(current_state, next_edges, solutions, explored_hashes);
+            backtrack_with_hash(&new_state, next_edges, solutions, explored_hashes);
         }
     }
 }
