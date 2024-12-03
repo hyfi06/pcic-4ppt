@@ -48,9 +48,10 @@ fn backtrack_with_hash(
     
     // Si cumple con alguna condición de solución (ejemplo: es una triangulación completa)
     if current_state.is_a_possible_ppt() {
-        println!("{}: Explorando", current_hash);
+        println!("Hash {}", current_hash);
         current_state.draw_ascii(40, 40);
         solutions.push(current_state.clone());
+        println!("");
         return;
     }
 

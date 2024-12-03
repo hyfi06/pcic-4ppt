@@ -210,6 +210,7 @@ impl PartialPT {
         });
         hash
     }
+
     pub fn draw_ascii(&self, width: usize, height: usize) {
         // Encontrar límites de las coordenadas
         let x_coords = self.nodes.iter().map(|node| node.get_coord().0);
