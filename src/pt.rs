@@ -1,5 +1,5 @@
-use crate::graph_utils::{on_segment, orientation,cicle_to_edges};
-use std::ops::Deref;
+use crate::graph_utils::{cicle_to_edges, on_segment, orientation};
+use std::{ops::Deref, vec};
 
 #[derive(Debug, Clone)]
 pub struct PointSet {
@@ -79,7 +79,8 @@ impl PartialPT {
             .edges
             .iter() //todo! "par_iter"
             .any(|edge2| {
-                if edge.0 == edge2.0 || edge.0 == edge2.1 || edge.1 == edge2.0 || edge.1 == edge2.1 {
+                if edge.0 == edge2.0 || edge.0 == edge2.1 || edge.1 == edge2.0 || edge.1 == edge2.1
+                {
                     return false;
                 }
                 self.edges_cross(&edge, edge2)
@@ -202,13 +203,125 @@ impl PartialPT {
         self.edges.contains(edge)
     }
 
-    pub fn hash_edges(&self)->String {
-        let mut hash = String::new();
-        self.edges.iter().for_each(|edge| {
-            hash.push_str(&format!("{}", edge.0));
-            hash.push_str(&format!("{}", edge.1));
-        });
-        hash
+    pub fn faces(&self) -> Vec<Vec<usize>> {
+        let mut faces = Vec::new();
+
+        for &(u, v) in self.edges.iter() {
+            let neighbors_u: Vec<usize> = self
+                .edges
+                .iter()
+                .filter_map(|&(a, b)| {
+                    if a == u && b != v {
+                        Some(b)
+                    } else if b == u {
+                        Some(a)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            let neighbors_v: Vec<usize> = self
+                .edges
+                .iter()
+                .filter_map(|&(a, b)| {
+                    if a == v {
+                        Some(b)
+                    } else if b == v && a != u {
+                        Some(a)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // Dividir vecinos de v según orientación respecto a la arista (u, v)
+            let (clockwise_v, counterclockwise_v): (Vec<usize>, Vec<usize>) =
+                neighbors_v.into_iter().partition(|&w| {
+                    orientation(
+                        self.nodes[u].get_coord(),
+                        self.nodes[v].get_coord(),
+                        self.nodes[w].get_coord(),
+                    ) == 1
+                });
+
+            // Procesar cada conjunto (horario y antihorario)
+            for neighbors_set in &[clockwise_v, counterclockwise_v] {
+                for &w in neighbors_set.iter() {
+                    // Verificar orientación de u respecto a v y w
+                    let orientation_u_v_w = orientation(
+                        self.nodes[u].get_coord(),
+                        self.nodes[v].get_coord(),
+                        self.nodes[w].get_coord(),
+                    );
+
+                    let all_diff_orientation = neighbors_set.iter().all(|&x| {
+                        if x == w {
+                            true
+                        } else {
+                            orientation(
+                                self.nodes[v].get_coord(),
+                                self.nodes[w].get_coord(),
+                                self.nodes[x].get_coord(),
+                            ) != orientation_u_v_w
+                        }
+                    });
+                    println!(
+                        "Edge ({},{}) - Set {:?} - vecino {} - diff_orient: {}",
+                        u, v, neighbors_set, w, all_diff_orientation
+                    );
+                    if all_diff_orientation {
+                        // Si w es vecino de u, anotar ciclo [u, v, w]
+                        if neighbors_u.contains(&w) {
+                            faces.push(vec![u, v, w]);
+                        } else {
+                            // Filtrar vecinos de u con la misma orientación respecto a (u, v)
+                            let aligned_neighbors_u: Vec<usize> = neighbors_u
+                                .iter()
+                                .cloned()
+                                .filter(|&z| {
+                                    orientation(
+                                        self.nodes[u].get_coord(),
+                                        self.nodes[v].get_coord(),
+                                        self.nodes[z].get_coord(),
+                                    ) == orientation_u_v_w
+                                })
+                                .collect();
+                            println!("Vecinos mismo lado: {:?}", aligned_neighbors_u);
+                            // Buscar z que cumpla el criterio
+                            for &z in &aligned_neighbors_u {
+                                let orientation_v_u_z = orientation(
+                                    self.nodes[v].get_coord(),
+                                    self.nodes[u].get_coord(),
+                                    self.nodes[z].get_coord(),
+                                );
+
+                                let all_diff_orientation_u = aligned_neighbors_u.iter().all(|&x| {
+                                    if x == z {
+                                        true
+                                    } else {
+                                        orientation(
+                                            self.nodes[u].get_coord(),
+                                            self.nodes[z].get_coord(),
+                                            self.nodes[x].get_coord(),
+                                        ) != orientation_v_u_z
+                                    }
+                                });
+
+                                if all_diff_orientation_u {
+                                    // Si w y z son vecinos, anotar ciclo [u, v, w, z]
+                                    if self.edges.contains(&(w, z)) || self.edges.contains(&(z, w))
+                                    {
+                                        faces.push(vec![u, v, w, z]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        faces
     }
 
     pub fn draw_ascii(&self, width: usize, height: usize) {
