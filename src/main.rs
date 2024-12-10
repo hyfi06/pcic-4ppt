@@ -10,17 +10,11 @@ fn main() -> io::Result<()> {
     let byte_size = 1;
 
     let point_sets = loader::load_file(filename, point_count, byte_size)?;
-    let mut graph = pt::PartialPT::from_point_set(&point_sets[1]);
-    graph.add_edge((0, 4)).ok();
-    graph.add_edge((1, 3)).ok();
-    graph.add_edge((3, 4)).ok();
-    graph.add_edge((4, 5)).ok();
-    graph.draw_ascii(40, 30);
-    println!("{:?}",graph);
+    println!("{}", point_sets.len());
+    let mut graph = pt::PartialPT::from_point_set(&point_sets[5]);
+    println!("{:?}", graph);
 
-    println!("{:?}",graph.faces());
-
-    // find_pseudo_triangles(&mut graph);
+    find_pseudo_triangles(&mut graph);
     Ok(())
 }
 
@@ -57,13 +51,16 @@ fn backtrack_with_hash(
     //     return;
     // }
 
-    // Si cumple con alguna condición de solución (ejemplo: es una triangulación completa)
-    if current_state.is_a_possible_ppt() {
-        // println!("Hash {}", current_hash);
-        current_state.draw_ascii(40, 40);
-        solutions.push(current_state.clone());
-        println!("");
-        return;
+    // Si cumple con alguna condición de solución (ejemplo: es una pseudo-triangulación completa)
+    let (min_degree, max_degree) = current_state.min_max_degree();
+    if current_state.is_a_possible_ppt() && min_degree >= 2 && max_degree <= 5 {
+        if current_state.is_a_4ppt() {
+            println!("Hash {}", current_state.hash_edges());
+            current_state.draw_ascii(40, 30);
+            solutions.push(current_state.clone());
+            println!("");
+            return;
+        }
     }
 
     // Explorar las posibles aristas restantes

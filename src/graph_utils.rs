@@ -15,11 +15,28 @@ pub fn on_segment(p: &(u32, u32), q: &(u32, u32), r: &(u32, u32)) -> bool {
 }
 
 pub fn cicle_to_edges(cicle: &Vec<usize>) -> Vec<(usize, usize)> {
-    cicle.iter()
+    cicle
+        .iter()
         .enumerate()
         .map(|(i, &x)| {
             let next = cicle.get(i + 1).unwrap_or(&cicle[0]);
             (x, *next)
         })
         .collect()
+}
+
+pub fn canonicalize_cycle(cycle: Vec<usize>) -> Vec<usize> {
+    let mut canonical_cycle = cycle.clone();
+
+    // Si es un ciclo de 4, rotarlo para que comience con el menor vértice
+    let min_idx = canonical_cycle
+        .iter()
+        .enumerate()
+        .min_by_key(|&(_, &val)| val)
+        .map(|(i, _)| i)
+        .unwrap();
+
+    canonical_cycle.rotate_left(min_idx);
+
+    canonical_cycle
 }

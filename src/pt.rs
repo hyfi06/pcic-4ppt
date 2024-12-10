@@ -1,5 +1,5 @@
-use crate::graph_utils::{cicle_to_edges, on_segment, orientation};
-use std::{ops::Deref, vec};
+use crate::graph_utils::{canonicalize_cycle, cicle_to_edges, on_segment, orientation};
+use std::ops::Deref;
 
 #[derive(Debug, Clone)]
 pub struct PointSet {
@@ -191,6 +191,15 @@ impl PartialPT {
         lower_hull
     }
 
+    pub fn hash_edges(&self) -> String {
+        let mut hash = String::new();
+        self.edges.iter().for_each(|edge| {
+            hash.push_str(&format!("{}", edge.0));
+            hash.push_str(&format!("{}", edge.1));
+        });
+        hash
+    }
+
     pub fn is_a_possible_ppt(&self) -> bool {
         return self.edges.len() == 2 * self.nodes.len() - 3;
     }
@@ -235,84 +244,89 @@ impl PartialPT {
                 })
                 .collect();
 
-            // Dividir vecinos de v según orientación respecto a la arista (u, v)
-            let (clockwise_v, counterclockwise_v): (Vec<usize>, Vec<usize>) =
-                neighbors_v.into_iter().partition(|&w| {
+            // Filtrar vecinos de v según orientación respecto a la arista (u, v)
+            let neighbors_set: Vec<usize> = neighbors_v
+                .into_iter()
+                .filter(|&w| {
                     orientation(
                         self.nodes[u].get_coord(),
                         self.nodes[v].get_coord(),
                         self.nodes[w].get_coord(),
                     ) == 1
-                });
+                })
+                .collect();
 
             // Procesar cada conjunto (horario y antihorario)
-            for neighbors_set in &[clockwise_v, counterclockwise_v] {
-                for &w in neighbors_set.iter() {
-                    // Verificar orientación de u respecto a v y w
-                    let orientation_u_v_w = orientation(
-                        self.nodes[u].get_coord(),
-                        self.nodes[v].get_coord(),
-                        self.nodes[w].get_coord(),
-                    );
+            for &w in neighbors_set.iter() {
+                // Verificar orientación de u respecto a v y w
+                let orientation_u_v_w = orientation(
+                    self.nodes[u].get_coord(),
+                    self.nodes[v].get_coord(),
+                    self.nodes[w].get_coord(),
+                );
 
-                    let all_diff_orientation = neighbors_set.iter().all(|&x| {
-                        if x == w {
-                            true
-                        } else {
-                            orientation(
-                                self.nodes[v].get_coord(),
-                                self.nodes[w].get_coord(),
-                                self.nodes[x].get_coord(),
-                            ) != orientation_u_v_w
+                let all_diff_orientation = neighbors_set.iter().all(|&x| {
+                    if x == w {
+                        true
+                    } else {
+                        orientation(
+                            self.nodes[v].get_coord(),
+                            self.nodes[w].get_coord(),
+                            self.nodes[x].get_coord(),
+                        ) != orientation_u_v_w
+                    }
+                });
+                // println!(
+                //     "Edge ({},{}) - Set {:?} - vecino {} - diff_orient: {}",
+                //     u, v, neighbors_set, w, all_diff_orientation
+                // );
+                if all_diff_orientation {
+                    // Si w es vecino de u, anotar ciclo [u, v, w]
+                    if neighbors_u.contains(&w) {
+                        let cycle = canonicalize_cycle(vec![u, v, w]);
+                        if !faces.contains(&cycle) {
+                            faces.push(cycle);
                         }
-                    });
-                    println!(
-                        "Edge ({},{}) - Set {:?} - vecino {} - diff_orient: {}",
-                        u, v, neighbors_set, w, all_diff_orientation
-                    );
-                    if all_diff_orientation {
-                        // Si w es vecino de u, anotar ciclo [u, v, w]
-                        if neighbors_u.contains(&w) {
-                            faces.push(vec![u, v, w]);
-                        } else {
-                            // Filtrar vecinos de u con la misma orientación respecto a (u, v)
-                            let aligned_neighbors_u: Vec<usize> = neighbors_u
-                                .iter()
-                                .cloned()
-                                .filter(|&z| {
+                    } else {
+                        // Filtrar vecinos de u con la misma orientación respecto a (u, v)
+                        let aligned_neighbors_u: Vec<usize> = neighbors_u
+                            .iter()
+                            .cloned()
+                            .filter(|&z| {
+                                orientation(
+                                    self.nodes[u].get_coord(),
+                                    self.nodes[v].get_coord(),
+                                    self.nodes[z].get_coord(),
+                                ) == orientation_u_v_w
+                            })
+                            .collect();
+
+                        // Buscar z que cumpla el criterio
+                        for &z in &aligned_neighbors_u {
+                            let orientation_v_u_z = orientation(
+                                self.nodes[v].get_coord(),
+                                self.nodes[u].get_coord(),
+                                self.nodes[z].get_coord(),
+                            );
+
+                            let all_diff_orientation_u = aligned_neighbors_u.iter().all(|&x| {
+                                if x == z {
+                                    true
+                                } else {
                                     orientation(
                                         self.nodes[u].get_coord(),
-                                        self.nodes[v].get_coord(),
                                         self.nodes[z].get_coord(),
-                                    ) == orientation_u_v_w
-                                })
-                                .collect();
-                            println!("Vecinos mismo lado: {:?}", aligned_neighbors_u);
-                            // Buscar z que cumpla el criterio
-                            for &z in &aligned_neighbors_u {
-                                let orientation_v_u_z = orientation(
-                                    self.nodes[v].get_coord(),
-                                    self.nodes[u].get_coord(),
-                                    self.nodes[z].get_coord(),
-                                );
+                                        self.nodes[x].get_coord(),
+                                    ) != orientation_v_u_z
+                                }
+                            });
 
-                                let all_diff_orientation_u = aligned_neighbors_u.iter().all(|&x| {
-                                    if x == z {
-                                        true
-                                    } else {
-                                        orientation(
-                                            self.nodes[u].get_coord(),
-                                            self.nodes[z].get_coord(),
-                                            self.nodes[x].get_coord(),
-                                        ) != orientation_v_u_z
-                                    }
-                                });
-
-                                if all_diff_orientation_u {
-                                    // Si w y z son vecinos, anotar ciclo [u, v, w, z]
-                                    if self.edges.contains(&(w, z)) || self.edges.contains(&(z, w))
-                                    {
-                                        faces.push(vec![u, v, w, z]);
+                            if all_diff_orientation_u {
+                                // Si w y z son vecinos, anotar ciclo [u, v, w, z]
+                                if self.edges.contains(&(w, z)) || self.edges.contains(&(z, w)) {
+                                    let cycle = canonicalize_cycle(vec![u, v, w, z]);
+                                    if !faces.contains(&cycle) {
+                                        faces.push(cycle);
                                     }
                                 }
                             }
@@ -322,6 +336,42 @@ impl PartialPT {
             }
         }
         faces
+    }
+
+    pub fn is_a_4ppt(&self) -> bool {
+        let mut four_faces = self.faces().into_iter().filter(|cycle| cycle.len() == 4);
+        !four_faces.any(|cycle| {
+            // Obtener las coordenadas de los vértices
+            let p_u = self.nodes[cycle[0]].get_coord();
+            let p_v = self.nodes[cycle[1]].get_coord();
+            let p_a = self.nodes[cycle[2]].get_coord();
+            let p_b = self.nodes[cycle[3]].get_coord();
+
+            // Calcular las orientaciones de los 4 segmentos consecutivos
+            let o1 = orientation(p_u, p_v, p_a);
+            let o2 = orientation(p_v, p_a, p_b);
+            let o3 = orientation(p_a, p_b, p_u);
+            let o4 = orientation(p_b, p_u, p_v);
+
+            // Verificar si todas las orientaciones tienen el mismo signo
+            o1 == o2 && o2 == o3 && o3 == o4
+        })
+    }
+
+    pub fn min_max_degree(&self) -> (usize, usize) {
+        let mut degrees = vec![0; self.nodes.len()];
+
+        // Calcular el grado de cada nodo recorriendo las aristas
+        for &(u, v) in &self.edges {
+            degrees[u] += 1;
+            degrees[v] += 1;
+        }
+
+        // Encontrar el grado mínimo y máximo
+        let min_degree = *degrees.iter().min().unwrap_or(&0);
+        let max_degree = *degrees.iter().max().unwrap_or(&0);
+
+        (min_degree, max_degree)
     }
 
     pub fn draw_ascii(&self, width: usize, height: usize) {
